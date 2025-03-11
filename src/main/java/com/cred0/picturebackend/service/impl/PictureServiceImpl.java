@@ -425,7 +425,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             return;
         }
         String domain = cosManager.getHost();
-        // FIXME 注意，这里的 url 包含了域名，实际上只要传 key 值（存储路径）就够了
+
         cosManager.deleteObject(oldPicture.getUrl().substring(domain.length()));
         // 清理缩略图
         String thumbnailUrl = oldPicture.getThumbnailUrl();
