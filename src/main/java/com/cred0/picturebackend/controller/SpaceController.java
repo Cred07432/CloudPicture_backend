@@ -62,7 +62,7 @@ public class SpaceController {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
         boolean result = spaceService.removeById(id);
-        ThrowUtils.throwIf(result, ErrorCode.NOT_FOUND_ERROR);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
 

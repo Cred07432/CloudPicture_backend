@@ -21,6 +21,8 @@ import com.cred0.picturebackend.model.vo.UserVO;
 import com.cred0.picturebackend.service.SpaceService;
 import com.cred0.picturebackend.mapper.SpaceMapper;
 import com.cred0.picturebackend.service.UserService;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -155,7 +157,10 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
     @Resource
     private UserService userService;
 
-    Map<Long, Object> lockMap = new ConcurrentHashMap<>();
+    //Map<Long, Object> lockMap = new ConcurrentHashMap<>();
+
+    @Resource
+    private RedissonClient redissonClient;
 
     @Override
     public long addSpace(SpaceAddRequest spaceAddRequest, User loginUser) {
@@ -180,25 +185,46 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限创建指定级别的空间");
         }
         // 针对用户进行加锁
-        Object lock = lockMap.computeIfAbsent(userId, key -> new Object());
+        //Object lock = lockMap.computeIfAbsent(userId, key -> new Object());
 
-        synchronized (lock) {
-            try{
-                Long newSpaceId = transactionTemplate.execute(status -> {
-                    boolean exists = this.lambdaQuery().eq(Space::getUserId, userId).exists();
-                    ThrowUtils.throwIf(exists, ErrorCode.OPERATION_ERROR, "每个用户仅能有一个私有空间");
-                    // 写入数据库
-                    boolean result = this.save(space);
-                    ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-                    // 返回新写入的数据 id
-                    return space.getId();
-                });
-                // 返回结果是包装类，可以做一些处理
-                return Optional.ofNullable(newSpaceId).orElse(-1L);
-            } finally {
-                lockMap.remove(userId);
-            }
+        String key = "DEC_STORE_LOCK_"+userId.toString();
+        RLock lock = redissonClient.getLock(key);
+        lock.lock();
+
+//        synchronized (lock) {
+//            try{
+//                Long newSpaceId = transactionTemplate.execute(status -> {
+//                    boolean exists = this.lambdaQuery().eq(Space::getUserId, userId).exists();
+//                    ThrowUtils.throwIf(exists, ErrorCode.OPERATION_ERROR, "每个用户仅能有一个私有空间");
+//                    // 写入数据库
+//                    boolean result = this.save(space);
+//                    ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+//                    // 返回新写入的数据 id
+//                    return space.getId();
+//                });
+//                // 返回结果是包装类，可以做一些处理
+//                return Optional.ofNullable(newSpaceId).orElse(-1L);
+//            } finally {
+//                lockMap.remove(userId);
+//            }
+//        }
+
+        try{
+            Long newSpaceId = transactionTemplate.execute(status -> {
+                boolean exists = this.lambdaQuery().eq(Space::getUserId, userId).exists();
+                ThrowUtils.throwIf(exists, ErrorCode.OPERATION_ERROR, "每个用户仅能有一个私有空间");
+                // 写入数据库
+                boolean result = this.save(space);
+                ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+                // 返回新写入的数据 id
+                return space.getId();
+            });
+            // 返回结果是包装类，可以做一些处理
+            return Optional.ofNullable(newSpaceId).orElse(-1L);
+        } finally {
+            lock.unlock();
         }
+
     }
 
 
