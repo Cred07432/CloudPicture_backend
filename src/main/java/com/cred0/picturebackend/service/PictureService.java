@@ -2,6 +2,7 @@ package com.cred0.picturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cred0.picturebackend.api.aliyunai.model.CreateOutPaintingTaskResponse;
 import com.cred0.picturebackend.model.dto.picture.*;
 import com.cred0.picturebackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -123,4 +124,6 @@ public interface PictureService extends IService<Picture> {
      * @throws SecurityException 当用户无权限操作该图片时抛出
      */
     void checkPictureAuth(User loginUser, Picture picture);
+
+    CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser);
 }
